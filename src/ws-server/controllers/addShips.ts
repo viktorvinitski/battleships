@@ -1,6 +1,5 @@
 import { getMappedShips, getRandomTurn, notifyClients } from "../helpers";
 import { ServerActions } from "../models/types";
-import { wss } from "../index";
 import db from "../db";
 
 type TParams = {

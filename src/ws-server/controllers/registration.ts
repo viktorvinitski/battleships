@@ -8,7 +8,7 @@ type TParams = {
 }
 
 export const registration = ({ ws, data }: TParams ) => {
-    const { name, password } = JSON.parse(data);
+    const { name } = JSON.parse(data);
     const newUser = {
         name,
         index: ws.clientId,
