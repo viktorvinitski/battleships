@@ -10,6 +10,7 @@ export enum ClientActions {
     ADD_SHIPS = "add_ships",
     ATTACK = "attack",
     RANDOM_ATTACK = "randomAttack",
+    SINGLE_PLAY = "single_play",
 }
 
 export enum ServerActions {
@@ -38,6 +39,7 @@ export enum AttackStatus {
 
 export type TUser = {
     name: string,
+    password: string;
     index: string,
     error?: boolean,
     errorText?: string,
@@ -60,6 +62,7 @@ export type TShip = {
     length: number;
     type: ShipType;
     targetPositions: TPosition[];
+    aroundPositions: TPosition[];
     isKilled: boolean;
 }
 

@@ -22,7 +22,6 @@ export const addShips = ({ data }: TParams) => {
 
         players.forEach(({indexPlayer, ships}) => {
             notifyClients({
-                wss,
                 notifications: [
                     { type: ServerActions.START_GAME, data: { ships, currentPlayerIndex: indexPlayer} },
                     { type: ServerActions.TURN, data: { currentPlayer: turn } },

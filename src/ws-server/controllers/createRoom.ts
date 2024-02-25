@@ -1,6 +1,5 @@
 import { notifyClients } from "../helpers";
 import { ServerActions, TWebSocketClient } from "../models/types";
-import { wss } from "../index";
 import { randomUUID } from "crypto";
 import db from '../db'
 
@@ -24,7 +23,6 @@ export const createRoom = ({ ws }: TParams ) => {
     const rooms = db.getRooms();
     const winners = db.getWinners();
     notifyClients({
-        wss,
         notifications: [
             { type: ServerActions.UPDATE_ROOM, data: rooms },
             { type: ServerActions.UPDATE_WINNERS, data: winners }

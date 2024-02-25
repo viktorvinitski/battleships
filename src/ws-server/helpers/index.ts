@@ -1,5 +1,5 @@
 import { AttackStatus, ServerActions, TPosition, TShip, TWebSocketClient } from "../models/types";
-import { Server } from "ws";
+import { wss } from "../index";
 
 type TServerResponseParams = {
     type: ServerActions;
@@ -7,7 +7,6 @@ type TServerResponseParams = {
 }
 
 type TNotifyClientsParams = {
-    wss: Server;
     notifications: TServerResponseParams[];
     notificationClients?: string[]
 }
@@ -20,7 +19,7 @@ export const prepareServerResponse = ({ type, data }: TServerResponseParams) => 
     })
 );
 
-export const notifyClients = ({ wss, notifications, notificationClients = [] }: TNotifyClientsParams) => {
+export const notifyClients = ({ notifications, notificationClients = [] }: TNotifyClientsParams) => {
     wss.clients.forEach((client: TWebSocketClient) => {
         if (client.readyState === 1) {
             // Notify all clients
@@ -44,6 +43,31 @@ export const getRandomTurn = (indexes: string[], ) => {
     return indexes[random];
 }
 
+// true - vertical
+// false - horizontal
+
+const getShipAroundPositions = (targetPositions: TPosition[], direction: boolean) => {
+    let aroundPositions: TPosition[] = []
+    if (direction) {
+        for (let i = - 1; i <= targetPositions.length; i++){
+            aroundPositions.push({ x: targetPositions[0].x - 1, y: targetPositions[0].y + i })
+            aroundPositions.push({ x: targetPositions[0].x + 1, y: targetPositions[0].y + i })
+        }
+        aroundPositions.push({ x: targetPositions[0].x, y: targetPositions[0].y - 1 })
+        aroundPositions.push({ x: targetPositions[0].x, y: targetPositions[targetPositions.length - 1].y + 1 })
+    } else {
+        for (let i = - 1; i <= targetPositions.length; i++){
+            aroundPositions.push({ x: targetPositions[0].x + i, y: targetPositions[0].y - 1 })
+            aroundPositions.push({ x: targetPositions[0].x + i, y: targetPositions[0].y + 1})
+        }
+        aroundPositions.push({ x: targetPositions[0].x - 1, y: targetPositions[0].y })
+        aroundPositions.push({ x: targetPositions[targetPositions.length - 1].x + 1, y: targetPositions[0].y })
+    }
+    return aroundPositions
+        .filter(position => position.x >= 0 && position.y >= 0)
+        .map(position => ({...position, isAttacked: false}));
+}
+
 export const getMappedShips = (ships: TShip[]) => {
     return ships.map(ship => {
         const defaultTargetCoordinates: TPosition = {...ship.position, isAttacked: false}
@@ -54,21 +78,22 @@ export const getMappedShips = (ships: TShip[]) => {
                     additionalTargetCoordinates.push({
                         ...defaultTargetCoordinates,
                         y: defaultTargetCoordinates.y + i,
-                        isAttacked: false
                     })
                 } else {
                     additionalTargetCoordinates.push({
                         ...defaultTargetCoordinates,
                         x: defaultTargetCoordinates.x + i,
-                        isAttacked: false,
                     })
                 }
             }
         }
 
+        const targetPositions = [defaultTargetCoordinates, ...additionalTargetCoordinates]
+
         return {
             ...ship,
-            targetPositions: [defaultTargetCoordinates, ...additionalTargetCoordinates],
+            targetPositions,
+            aroundPositions: getShipAroundPositions(targetPositions, ship.direction)
         }
     })
 }
@@ -78,5 +103,23 @@ export const getShotStatus = (ships: TShip[], x: number, y: number) => {
         return ship.targetPositions.some(position => position.x === x && position.y === y)
     })
     return isSuccessShot ? AttackStatus.SHOT : AttackStatus.MISS
+}
+
+const getRandomCoordinates = () => {
+    const randomX = Math.floor(Math.random() * 10);
+    const randomY = Math.floor(Math.random() * 10);
+
+    return { x: randomX, y: randomY };
+}
+
+export const getRandomPosition = (shots: TPosition[]): { x: number, y: number } => {
+    const { y, x} = getRandomCoordinates();
+
+    const isShotExits = shots.find(shot => shot.y === y && shot.x === x);
+    if (isShotExits) {
+        return getRandomPosition(shots);
+    } else {
+        return { x, y }
+    }
 }
 

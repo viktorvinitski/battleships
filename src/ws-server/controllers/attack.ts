@@ -1,44 +1,52 @@
-import { getShotStatus, notifyClients } from "../helpers";
-import { AttackStatus, ServerActions, TGame, TWinner } from "../models/types";
-import { wss } from "../index";
+import { getShotStatus, notifyClients} from "../helpers";
+import { AttackStatus, ServerActions } from "../models/types";
 import db from "../db";
 
 type TParams = {
     data: string;
-    games: TGame[];
-    winners: TWinner[];
 }
-
-
 
 export const attack = ({ data }: TParams) => {
     const { x, y, gameId, indexPlayer } = JSON.parse(data);
-    const currentPlayersIndexes = db.getPlayers(gameId).map(player => player.indexPlayer);
     const attackedPlayer = db.getAttackedPlayer(gameId, indexPlayer);
+    const currentPlayersIndexes = db.getPlayers(gameId).map(player => player.indexPlayer);
     const enemy = db.getEnemy(gameId, indexPlayer);
     const shotStatus = getShotStatus(enemy.ships, x, y)
 
-    // Add successful shot
+    // Check is user already shoot this position
     const isAttackedPosition = db.checkIsPositionAttacked({ gameId, player: attackedPlayer, x, y })
-    if (!isAttackedPosition) {
-        db.addPlayerShot({ gameId, player: attackedPlayer, x, y })
-    }
-
     if (!attackedPlayer.turn || isAttackedPosition) {
         return;
     }
 
 
     if (shotStatus === AttackStatus.SHOT) {
+        // add player shot
+        db.addPlayerShot({ gameId, player: attackedPlayer, x, y })
         db.setIsAttackedPosition({ gameId, playerId: indexPlayer, x, y, isAttacked: true })
 
         const isKilledShip = db.checkIsKilledShip({ gameId, playerId: indexPlayer, x, y })
         if (isKilledShip) {
             db.setShipKilled({ gameId, playerId: indexPlayer, x, y })
             const attackedShip = db.getAttackedShip({ gameId, playerId: indexPlayer, x, y });
+
+            // Notify clients about missed positions around ship
+            attackedShip.aroundPositions.forEach(position => {
+                db.addPlayerShot({ gameId, player: attackedPlayer, x: position.x, y: position.y })
+                notifyClients({
+                    notifications: [
+                        {
+                            type: ServerActions.ATTACK,
+                            data: { position: { x: position.x, y: position.y }, currentPlayer: indexPlayer, status: AttackStatus.MISS}
+                        },
+                    ],
+                    notificationClients: currentPlayersIndexes
+                })
+            })
+
+            // Notify clients that ship was killed
             attackedShip.targetPositions.forEach(position => {
                 notifyClients({
-                    wss,
                     notifications: [
                         {
                             type: ServerActions.ATTACK,
@@ -49,48 +57,44 @@ export const attack = ({ data }: TParams) => {
                 })
             })
 
-            // Handling of killing of all ships
+            // Handling of game finish
             const isKilledAllShips = enemy.ships.every(ship => ship.isKilled);
             if (isKilledAllShips) {
                 db.setWinner(gameId, indexPlayer)
                 const winners = db.getWinners()
                 notifyClients({
-                    wss,
-                    notifications: [
-                        {
-                            type: ServerActions.FINISH,
-                            data: { winPlayer: attackedPlayer.indexPlayer }
-                        },
-                        {
-                            type: ServerActions.UPDATE_WINNERS,
-                            data: winners
-                        },
-                    ],
+                    notifications: [{ type: ServerActions.FINISH, data: { winPlayer: attackedPlayer.indexPlayer }}],
                     notificationClients: currentPlayersIndexes
                 })
+
+                // Update winners for all users
+                notifyClients({
+                    notifications: [{ type: ServerActions.UPDATE_WINNERS, data: winners }],
+                })
+                db.deleteGame(gameId);
             }
             return;
         }
         notifyClients({
-            wss,
             notifications: [
                 {
                     type: ServerActions.ATTACK,
-                    data: { position: { x, y }, currentPlayer: indexPlayer, status: shotStatus}
+                    data: { position: { x, y }, currentPlayer: indexPlayer, status: shotStatus }
                 },
             ],
             notificationClients: currentPlayersIndexes
         })
     }
 
-    // Change turn if shot is unsuccessful
     if(shotStatus === AttackStatus.MISS) {
+        // Add player shot
+        db.addPlayerShot({ gameId, player: attackedPlayer, x, y })
         db.changePlayerTurn(gameId, indexPlayer)
         const nextTurnPlayerId = db.getNextTurnPlayerId(gameId)
 
         notifyClients({
-            wss,
             notifications: [
+                // Change turn if shot is unsuccessful
                 { type: ServerActions.TURN, data: { currentPlayer: nextTurnPlayerId } },
                 { type: ServerActions.ATTACK, data: { position: { x, y }, currentPlayer: indexPlayer, status: AttackStatus.MISS }},
             ],

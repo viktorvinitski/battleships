@@ -1,6 +1,5 @@
 import { notifyClients } from "../helpers";
 import { ServerActions, TWebSocketClient } from "../models/types";
-import { wss } from "../index";
 import { randomUUID } from "crypto";
 import db from '../db'
 
@@ -25,7 +24,6 @@ export const addToRoom = ({ ws, data }: TParams ) => {
     const idGame = randomUUID();
     usersInRoom.forEach(user => {
         notifyClients({
-            wss,
             notifications: [
                 { type: ServerActions.CREATE_GAME, data: { idGame, idPlayer: user.index} }
             ],
@@ -34,16 +32,17 @@ export const addToRoom = ({ ws, data }: TParams ) => {
     })
 
     // Create game with both players
-    db.addGame(idGame, usersInRoom)
+    db.addGame(idGame, usersInRoom);
 
-    // If user have his own room, we need to delete it TODO:NOT WORKING!!!!!!!
-    // const newUserRoom = db.getRooms().find(room => room.roomUsers.some(user => user.name === newUserInRoom.name))
-    // if (newUserRoom) {
-    //     db.deleteRoom(newUserRoom.roomId)
-    // }
-
-    // Delete current room after starting of the game
-    db.deleteRoom(indexRoom);
-    const rooms = db.getRooms()
-    notifyClients({ wss, notifications: [{ type: ServerActions.UPDATE_ROOM, data: rooms }] })
+    // Delete rooms of both users
+    usersInRoom.forEach(roomUser => {
+        db.getRooms().forEach(room => {
+            const isUserWithRoom = room.roomUsers.some(user => user.index === roomUser.index);
+            if (isUserWithRoom) {
+                db.deleteRoom(room.roomId);
+            }
+        })
+    })
+    const rooms = db.getRooms();
+    notifyClients({ notifications: [{ type: ServerActions.UPDATE_ROOM, data: rooms }] })
 }

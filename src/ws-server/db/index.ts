@@ -1,4 +1,4 @@
-import {TGame, TPlayer, TPosition, TRoom, TShip, TUser, TWinner} from "../models/types";
+import { TGame, TPlayer, TPosition, TRoom, TShip, TUser, TWinner } from "../models/types";
 
 type TDatabase = {
     _users: TUser[];
@@ -6,6 +6,7 @@ type TDatabase = {
     getUserById: (id: string) => TUser;
     addUser: (user: { name: string, index: string }) => TUser[];
     checkIsUserExists: (name: string) => boolean;
+    checkPassword: (name: string, password: string) => boolean;
     deleteUser: (id: string) => void;
 
     _rooms: TRoom[];
@@ -38,6 +39,7 @@ type TDatabase = {
     getAttackedShip: (value: { gameId: string, playerId: string, x: number, y: number }) => TShip;
     changePlayerTurn: (gameId: string, playerId: string) => void;
     getNextTurnPlayerId: (gameId: string) => string;
+    deleteGame: (gameId: string) => void;
 
     _winners: TWinner[];
     getWinners: () => TWinner[];
@@ -58,10 +60,11 @@ const database: TDatabase = {
         return this._users = [...this._users, user]
     },
     checkIsUserExists: function (name) {
-        if (this._users.length) {
-            return this._users.find((user: TUser) => user.name === name);
-        }
-        return false;
+        return this._users.some((user: TUser) => user.name === name);
+    },
+    checkPassword: function (name, password) {
+        const user = this._users.find((user: TUser) => user.name === name);
+        return user.password === password
     },
     deleteUser: function (id) {
         return this._users = this._users.filter((user: TUser) => user.index !== id)
@@ -167,7 +170,7 @@ const database: TDatabase = {
         return this.getPlayers(gameId).find((player: TPlayer) => player.indexPlayer !== playerId)
     },
     checkIsPositionAttacked: function ({gameId, player, x, y}) {
-        return this.getAttackedPlayer(gameId, player.indexPlayer).shots.find((shot: TPosition) => shot.x === x && shot.y === y)
+        return this.getAttackedPlayer(gameId, player.indexPlayer).shots.some((shot: TPosition) => shot.x === x && shot.y === y)
     },
     addPlayerShot: function ({gameId, player, x, y}) {
         this.getAttackedPlayer(gameId, player.indexPlayer).shots.push({ y, x })
@@ -239,6 +242,9 @@ const database: TDatabase = {
         const currentGameIndex = this.getGameIndex(gameId);
         return this._games[currentGameIndex].players.find((player: TPlayer) => player.turn).indexPlayer
     },
+    deleteGame: function (gameId) {
+        this._games = this._games.filter((game: TGame) => game.gameId !== gameId);
+    },
 
 
     _winners: [],
@@ -252,10 +258,11 @@ const database: TDatabase = {
         const winner = winners.find((winner: TWinner) => winner.name === attackedPlayer.name)
 
         if(winner) {
-            winners[winnerIndex] = { name: winner.name, wins: winner.wins++}
+            winners[winnerIndex] = { name: winner.name, wins: winner.wins + 1}
         } else {
             winners.push({ name: attackedPlayer.name, wins: 1})
         }
+        winners.sort((a: TWinner, b: TWinner) => b.wins - a.wins )
     },
 
 
