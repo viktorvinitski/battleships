@@ -22,7 +22,6 @@ export const addToRoom = ({ ws, data }: TParams ) => {
 
     // Notifying of players in the room that game was started
     const idGame = randomUUID();
-    console.log(usersInRoom)
     usersInRoom.forEach(user => {
         notifyClients({
             notifications: [

@@ -15,6 +15,7 @@ type TParams = {
 
 export const clientMessageHandler = ({ ws, message }: TParams) => {
     const { type, data } = JSON.parse(message);
+    console.log(type, data);
 
     return {
         [ClientActions.REG]: () => {
