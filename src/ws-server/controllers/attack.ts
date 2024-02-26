@@ -1,4 +1,4 @@
-import { getShotStatus, notifyClients} from "../helpers";
+import { checkIsBot, getBotAttackData, getShotStatus, notifyClients } from "../helpers";
 import { AttackStatus, ServerActions } from "../models/types";
 import db from "../db";
 
@@ -12,6 +12,7 @@ export const attack = ({ data }: TParams) => {
     const currentPlayersIndexes = db.getPlayers(gameId).map(player => player.indexPlayer);
     const enemy = db.getEnemy(gameId, indexPlayer);
     const shotStatus = getShotStatus(enemy.ships, x, y)
+    const isAttackedPlayerBot = checkIsBot(attackedPlayer.name);
 
     // Check is user already shoot this position
     const isAttackedPosition = db.checkIsPositionAttacked({ gameId, player: attackedPlayer, x, y })
@@ -73,7 +74,18 @@ export const attack = ({ data }: TParams) => {
                 })
                 db.deleteGame(gameId);
             }
+
+            // Handle bot attack
+            if (isAttackedPlayerBot) {
+                const botAttackData = getBotAttackData(gameId, attackedPlayer.shots, attackedPlayer.indexPlayer)
+                attack({ data: botAttackData })
+            }
             return;
+        }
+        // Handle bot attack
+        if (isAttackedPlayerBot) {
+            const botAttackData = getBotAttackData(gameId, attackedPlayer.shots, attackedPlayer.indexPlayer)
+            attack({ data: botAttackData })
         }
         notifyClients({
             notifications: [
@@ -100,5 +112,11 @@ export const attack = ({ data }: TParams) => {
             ],
             notificationClients: currentPlayersIndexes
         })
+
+        const isEnemyBot = checkIsBot(enemy.name);
+        if (isEnemyBot) {
+            const botAttackData = getBotAttackData(gameId, enemy.shots, enemy.indexPlayer )
+            attack({ data: botAttackData })
+        }
     }
 }

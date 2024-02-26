@@ -1,4 +1,5 @@
 import { TGame, TPlayer, TPosition, TRoom, TShip, TUser, TWinner } from "../models/types";
+import { checkIsBot } from "../helpers";
 
 type TDatabase = {
     _users: TUser[];
@@ -262,7 +263,8 @@ const database: TDatabase = {
         } else {
             winners.push({ name: attackedPlayer.name, wins: 1})
         }
-        winners.sort((a: TWinner, b: TWinner) => b.wins - a.wins )
+        winners.sort((a: TWinner, b: TWinner) => b.wins - a.wins)
+        this._winners = winners.filter((winner: TWinner) => !checkIsBot(winner.name))
     },
 
 

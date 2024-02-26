@@ -1,5 +1,6 @@
 import { AttackStatus, ServerActions, TPosition, TShip, TWebSocketClient } from "../models/types";
 import { wss } from "../index";
+import { BOT_SHIPS } from "../constants";
 
 type TServerResponseParams = {
     type: ServerActions;
@@ -123,3 +124,13 @@ export const getRandomPosition = (shots: TPosition[]): { x: number, y: number } 
     }
 }
 
+export const getBotAttackData = (gameId: string, shots: TPosition[], indexPlayer: string)=> {
+    const { x, y } = getRandomPosition(shots);
+    return  JSON.stringify({ x, y, gameId, indexPlayer})
+}
+
+export const checkIsBot = (name: string) => name.includes('BOT')
+
+export const generateShips = () => {
+    return BOT_SHIPS[Math.floor(Math.random() * BOT_SHIPS.length)]
+}

@@ -1,6 +1,7 @@
-import { getMappedShips, getRandomTurn, notifyClients } from "../helpers";
+import { checkIsBot, getBotAttackData, getMappedShips, getRandomTurn, notifyClients } from "../helpers";
 import { ServerActions } from "../models/types";
 import db from "../db";
+import { attack } from "./attack";
 
 type TParams = {
     data: string;
@@ -29,6 +30,12 @@ export const addShips = ({ data }: TParams) => {
             })
         })
 
+        // Handle bot make first shoot
+        const { turn: isBotTurn, indexPlayer: botId } = db.getGameById(gameId).players.find(player => checkIsBot(player.name)) || {}
+        if (isBotTurn) {
+            const attackedPlayer = db.getAttackedPlayer(gameId, botId);
+            const botAttackData = getBotAttackData(gameId, attackedPlayer.shots, attackedPlayer.indexPlayer)
+            attack({ data: botAttackData })
+        }
     }
-
 }

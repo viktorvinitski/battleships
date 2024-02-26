@@ -14,6 +14,7 @@ export const createRoom = ({ ws }: TParams ) => {
         roomUsers: [roomCreator],
     };
 
+
     const isExistsRoomWithUser = db.checkIsExistsRoomWithUser(roomCreator.index)
     if (isExistsRoomWithUser) {
         return;
@@ -28,4 +29,6 @@ export const createRoom = ({ ws }: TParams ) => {
             { type: ServerActions.UPDATE_WINNERS, data: winners }
         ]
     })
+
+    return newRoom;
 }
